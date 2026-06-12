@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Urban Green Space Dashboard - XLSX Live</title>
+
+  <!-- SheetJS legge file Excel/XLSX nel browser. Plotly crea i grafici. -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --accent: #2563eb;
+      --shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      padding: 28px 32px 18px;
+      background: linear-gradient(135deg, #ffffff 0%, #eef5ff 100%);
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      letter-spacing: -0.03em;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 980px;
+      line-height: 1.45;
+    }
+
+    main {
+      padding: 24px 32px 40px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .toolbar-left, .toolbar-right {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button, select {
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: white;
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .kpi-grid { grid-template-columns: repeat(6, minmax(140px, 1fr)); }
+    .two-col { grid-template-columns: minmax(280px, 0.8fr) minmax(480px, 1.2fr); margin-top: 18px; }
+    .chart-grid { grid-template-columns: 1fr 1fr; margin-top: 18px; }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .kpi { min-height: 112px; }
+
+    .kpi .label {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.25;
+      min-height: 34px;
+    }
+
+    .kpi .value {
+      margin-top: 10px;
+      font-size: 26px;
+      font-weight: 750;
+      letter-spacing: -0.03em;
+    }
+
+    .kpi .note {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .profile-table, .ranking-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .profile-table td,
+    .ranking-table th,
+    .ranking-table td {
+      padding: 9px 8px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .profile-table td:first-child {
+      color: var(--muted);
+      width: 62%;
+    }
+
+    .ranking-wrap {
+      overflow-x: auto;
+      max-height: 460px;
+    }
+
+    .ranking-table th {
+      position: sticky;
+      top: 0;
+      background: white;
+      font-weight: 700;
+      color: var(--muted);
+      z-index: 1;
+    }
+
+    .chart {
+      width: 100%;
+      min-height: 420px;
+    }
+
+    .message {
+      display: none;
+      background: #fff7ed;
+      color: #7c2d12;
+      border: 1px solid #fed7aa;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 18px;
+      line-height: 1.45;
+    }
+
+    .message.show { display: block; }
+
+    code {
+      background: #eef2ff;
+      padding: 2px 5px;
+      border-radius: 5px;
+    }
+
+    footer {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 18px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1100px) {
+      .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+      .two-col, .chart-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      header, main {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .kpi-grid { grid-template-columns: 1fr; }
+
+      header h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Urban Green Space Live Dashboard</h1>
+    <p>
+      Versione HTML collegata a un file Excel/XLSX. Può leggere un file <code>.xlsx</code> nello stesso repository GitHub
+      oppure l’export XLSX pubblico di un Google Sheet.
+    </p>
+  </header>
+
+  <main>
+    <div id="message" class="message"></div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <label for="citySelect"><strong>Città:</strong></label>
+        <select id="citySelect"></select>
+
+        <label for="xVariable"><strong>Variabile scatter:</strong></label>
+        <select id="xVariable"></select>
+      </div>
+
+      <div class="toolbar-right">
+        <button id="refreshBtn">Aggiorna dati</button>
+        <button id="autoRefreshBtn" class="secondary">Auto-refresh: OFF</button>
+        <span id="status" class="status">Caricamento dati...</span>
+      </div>
+    </div>
+
+    <section class="grid kpi-grid">
+      <div class="card kpi">
+        <div class="label">Città analizzate</div>
+        <div id="kpiCities" class="value">—</div>
+      </div>
+
+      <div class="card kpi">
+        <div class="label">Media verde urbano</div>
+        <div id="kpiAvgGreen" class="value">—</div>
+      </div>
+
+      <div class="card kpi">
+        <div class="label">Città più verde</div>
+        <div id="kpiGreenest" class="value">—</div>
+        <div id="kpiGreenestNote" class="note"></div>
+      </div>
+
+      <div class="card kpi">
+        <div class="label">Città meno verde</div>
+        <div id="kpiLowest" class="value">—</div>
+        <div id="kpiLowestNote" class="note"></div>
+      </div>
+
+      <div class="card kpi">
+        <div class="label">Media PM2.5</div>
+        <div id="kpiAvgPM" class="value">—</div>
+        <div class="note">µg/m³</div>
+      </div>
+
+      <div class="card kpi">
+        <div class="label">Densità media</div>
+        <div id="kpiDensity" class="value">—</div>
+        <div class="note">persone/km²</div>
+      </div>
+    </section>
+
+    <section class="grid two-col">
+      <div class="card">
+        <h2>Profilo città selezionata</h2>
+        <table class="profile-table">
+          <tbody id="profileBody"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Ranking verde urbano</h2>
+        <div class="ranking-wrap">
+          <table class="ranking-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Città</th>
+                <th>Verde medio (%)</th>
+                <th>Densità</th>
+                <th>PM2.5</th>
+              </tr>
+            </thead>
+            <tbody id="rankingBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid chart-grid">
+      <div class="card">
+        <div id="barChart" class="chart"></div>
+      </div>
+
+      <div class="card">
+        <div id="scatterChart" class="chart"></div>
+      </div>
+    </section>
+
+    <section class="grid chart-grid">
+      <div class="card">
+        <div id="eastWestChart" class="chart"></div>
+      </div>
+
+      <div class="card">
+        <h2>Correlazioni con Mean Green Space (%)</h2>
+        <div class="ranking-wrap">
+          <table class="ranking-table">
+            <thead>
+              <tr>
+                <th>Variabile</th>
+                <th>Correlazione</th>
+                <th>Lettura rapida</th>
+              </tr>
+            </thead>
+            <tbody id="corrBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Nota: se il file XLSX è su Google Drive o Google Sheets deve essere pubblico/pubblicato. Se lo metti nello stesso repository GitHub,
+      la dashboard legge direttamente quel file ma si aggiorna solo quando sostituisci il file nel repository.
+    </footer>
+  </main>
+
+  <script>
+    /*
+      CONFIGURAZIONE DATI
+
+      OPZIONE A - Google Sheet esportato come XLSX.
+      Funziona solo se il file è leggibile/pubblico. In alcuni contesti Google può bloccare il download
+      via browser per permessi o CORS.
+
+      OPZIONE B - File Excel nello stesso repository GitHub.
+      Carica il file "data.xlsx" accanto a index.html e imposta:
+      const XLSX_URL = "./data.xlsx";
+
+      Per una dashboard davvero live collegata al Google Sheet, l'opzione CSV resta più stabile.
+    */
+
+    const SHEET_ID = "13RiLxw77bsfmNuz1EpI2amq4pTNIqqPCKiHL0s55tWw";
+    const XLSX_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`;
+
+    // Alternativa GitHub:
+    // const XLSX_URL = "./data.xlsx";
+
+    const SHEET_NAME = "FINAL";
+
+    const COLUMNS = [
+      "City",
+      "East Quadrat Green Space (%)",
+      "West Quadrat Green Space (%)",
+      "Mean Green Space (%)",
+      "Population density (people/km²)",
+      "Total population size (2023)",
+      "GDP per capita (€) (2023)",
+      "Average Mean Surface Air Temperature (°C) (2023)",
+      "Annual Average PM2.5 Concentration (µg/m³) (2022)"
+    ];
+
+    const VARIABLE_OPTIONS = [
+      "Population density (people/km²)",
+      "Total population size (2023)",
+      "GDP per capita (€) (2023)",
+      "Average Mean Surface Air Temperature (°C) (2023)",
+      "Annual Average PM2.5 Concentration (µg/m³) (2022)"
+    ];
+
+    let dashboardData = [];
+    let autoRefreshTimer = null;
+
+    const fmt = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 1 });
+    const fmtInt = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0 });
+    const statusEl = document.getElementById("status");
+    const messageEl = document.getElementById("message");
+
+    document.getElementById("refreshBtn").addEventListener("click", loadData);
+
+    document.getElementById("autoRefreshBtn").addEventListener("click", () => {
+      const btn = document.getElementById("autoRefreshBtn");
+
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+        btn.textContent = "Auto-refresh: OFF";
+        btn.classList.add("secondary");
+      } else {
+        autoRefreshTimer = setInterval(loadData, 5 * 60 * 1000);
+        btn.textContent = "Auto-refresh: ON";
+        btn.classList.remove("secondary");
+      }
+    });
+
+    document.getElementById("citySelect").addEventListener("change", () => {
+      updateCityProfile();
+      renderEastWestChart();
+    });
+
+    document.getElementById("xVariable").addEventListener("change", renderScatter);
+
+    function showMessage(text) {
+      if (!text) {
+        messageEl.classList.remove("show");
+        messageEl.innerHTML = "";
+        return;
+      }
+
+      messageEl.classList.add("show");
+      messageEl.innerHTML = text;
+    }
+
+    function toNumber(value) {
+      if (value === null || value === undefined || value === "") return null;
+      if (typeof value === "number") return Number.isFinite(value) ? value : null;
+      const cleaned = String(value).replace(/\s/g, "").replace(",", ".");
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function mean(values) {
+      const nums = values.filter(v => Number.isFinite(v));
+      return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+    }
+
+    function correlation(x, y) {
+      const pairs = x.map((value, i) => [value, y[i]])
+        .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
+
+      if (pairs.length < 2) return null;
+
+      const xs = pairs.map(p => p[0]);
+      const ys = pairs.map(p => p[1]);
+      const mx = mean(xs);
+      const my = mean(ys);
+
+      const numerator = pairs.reduce((sum, [a, b]) => sum + ((a - mx) * (b - my)), 0);
+      const denomX = Math.sqrt(xs.reduce((sum, a) => sum + Math.pow(a - mx, 2), 0));
+      const denomY = Math.sqrt(ys.reduce((sum, b) => sum + Math.pow(b - my, 2), 0));
+
+      if (denomX === 0 || denomY === 0) return null;
+      return numerator / (denomX * denomY);
+    }
+
+    function corrLabel(r) {
+      if (r === null) return "n.d.";
+      const abs = Math.abs(r);
+      const direction = r < 0 ? "negativa" : "positiva";
+
+      if (abs >= 0.7) return `relazione ${direction} forte`;
+      if (abs >= 0.4) return `relazione ${direction} moderata`;
+      if (abs >= 0.2) return `relazione ${direction} debole`;
+      return "relazione molto debole";
+    }
+
+    function normalizeRows(rows) {
+      return rows
+        .map(row => row.slice(0, 9))
+        .filter(row => {
+          const city = row[0] ? String(row[0]).trim() : "";
+          const meanGreen = toNumber(row[3]);
+
+          return city &&
+            city.toLowerCase() !== "city" &&
+            city.toLowerCase() !== "correlation =" &&
+            Number.isFinite(meanGreen);
+        })
+        .map(row => {
+          const obj = {};
+          COLUMNS.forEach((col, index) => {
+            obj[col] = index === 0 ? String(row[index]).trim() : toNumber(row[index]);
+          });
+          return obj;
+        });
+    }
+
+    async function loadData() {
+      statusEl.textContent = "Caricamento XLSX...";
+      showMessage("");
+
+      try {
+        const response = await fetch(`${XLSX_URL}${XLSX_URL.includes("?") ? "&" : "?"}cacheBust=${Date.now()}`);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+        const sheet = workbook.Sheets[SHEET_NAME] || workbook.Sheets[workbook.SheetNames[0]];
+
+        if (!sheet) {
+          throw new Error(`Foglio "${SHEET_NAME}" non trovato nel file XLSX.`);
+        }
+
+        const rows = XLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          raw: true,
+          defval: ""
+        });
+
+        const data = normalizeRows(rows);
+
+        if (!data.length) {
+          throw new Error("Nessuna riga dati valida trovata nel file XLSX.");
+        }
+
+        dashboardData = data;
+        setupControls();
+        renderDashboard();
+
+        statusEl.textContent = `Dati aggiornati: ${new Date().toLocaleString("it-IT")}`;
+      } catch (error) {
+        console.error(error);
+        statusEl.textContent = "Errore caricamento XLSX";
+        showMessage(`
+          <strong>Non riesco a leggere il file XLSX.</strong><br>
+          Possibili cause: file non pubblico, permessi Google, blocco CORS, tab <code>${SHEET_NAME}</code> assente,
+          oppure URL non raggiungibile dal browser.<br><br>
+          Soluzione più stabile: carica un file <code>data.xlsx</code> nello stesso repository GitHub e cambia:
+          <code>const XLSX_URL = "./data.xlsx";</code><br>
+          Errore tecnico: <code>${error.message}</code>
+        `);
+      }
+    }
+
+    function setupControls() {
+      const citySelect = document.getElementById("citySelect");
+      const currentCity = citySelect.value;
+
+      citySelect.innerHTML = "";
+
+      dashboardData
+        .map(row => row.City)
+        .sort((a, b) => a.localeCompare(b))
+        .forEach(city => {
+          const option = document.createElement("option");
+          option.value = city;
+          option.textContent = city;
+          citySelect.appendChild(option);
+        });
+
+      if (currentCity && dashboardData.some(row => row.City === currentCity)) {
+        citySelect.value = currentCity;
+      }
+
+      const xVariable = document.getElementById("xVariable");
+
+      if (!xVariable.options.length) {
+        VARIABLE_OPTIONS.forEach(variable => {
+          const option = document.createElement("option");
+          option.value = variable;
+          option.textContent = variable;
+          xVariable.appendChild(option);
+        });
+      }
+    }
+
+    function renderDashboard() {
+      renderKPIs();
+      updateCityProfile();
+      renderRanking();
+      renderBarChart();
+      renderScatter();
+      renderEastWestChart();
+      renderCorrelations();
+    }
+
+    function renderKPIs() {
+      const greenValues = dashboardData.map(row => row["Mean Green Space (%)"]);
+      const pmValues = dashboardData.map(row => row["Annual Average PM2.5 Concentration (µg/m³) (2022)"]);
+      const densityValues = dashboardData.map(row => row["Population density (people/km²)"]);
+
+      const greenest = [...dashboardData].sort((a, b) => b["Mean Green Space (%)"] - a["Mean Green Space (%)"])[0];
+      const lowest = [...dashboardData].sort((a, b) => a["Mean Green Space (%)"] - b["Mean Green Space (%)"])[0];
+
+      document.getElementById("kpiCities").textContent = dashboardData.length;
+      document.getElementById("kpiAvgGreen").textContent = `${fmt.format(mean(greenValues))}%`;
+      document.getElementById("kpiGreenest").textContent = greenest.City;
+      document.getElementById("kpiGreenestNote").textContent = `${fmt.format(greenest["Mean Green Space (%)"])}%`;
+      document.getElementById("kpiLowest").textContent = lowest.City;
+      document.getElementById("kpiLowestNote").textContent = `${fmt.format(lowest["Mean Green Space (%)"])}%`;
+      document.getElementById("kpiAvgPM").textContent = fmt.format(mean(pmValues));
+      document.getElementById("kpiDensity").textContent = fmtInt.format(mean(densityValues));
+    }
+
+    function updateCityProfile() {
+      if (!dashboardData.length) return;
+
+      const city = document.getElementById("citySelect").value || dashboardData[0].City;
+      const row = dashboardData.find(item => item.City === city) || dashboardData[0];
+
+      const fields = [
+        ["East Quadrat Green Space (%)", "%"],
+        ["West Quadrat Green Space (%)", "%"],
+        ["Mean Green Space (%)", "%"],
+        ["Population density (people/km²)", "people/km²"],
+        ["Total population size (2023)", ""],
+        ["GDP per capita (€) (2023)", "€"],
+        ["Average Mean Surface Air Temperature (°C) (2023)", "°C"],
+        ["Annual Average PM2.5 Concentration (µg/m³) (2022)", "µg/m³"]
+      ];
+
+      document.getElementById("profileBody").innerHTML = fields.map(([field, unit]) => {
+        const value = row[field];
+        const formatted = field.includes("population size")
+          ? fmtInt.format(value)
+          : fmt.format(value);
+
+        return `
+          <tr>
+            <td>${field}</td>
+            <td><strong>${formatted}${unit ? " " + unit : ""}</strong></td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderRanking() {
+      const sorted = [...dashboardData].sort((a, b) => b["Mean Green Space (%)"] - a["Mean Green Space (%)"]);
+
+      document.getElementById("rankingBody").innerHTML = sorted.map((row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td><strong>${row.City}</strong></td>
+          <td>${fmt.format(row["Mean Green Space (%)"])}</td>
+          <td>${fmtInt.format(row["Population density (people/km²)"])}</td>
+          <td>${fmt.format(row["Annual Average PM2.5 Concentration (µg/m³) (2022)"])}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderBarChart() {
+      const sorted = [...dashboardData].sort((a, b) => b["Mean Green Space (%)"] - a["Mean Green Space (%)"]);
+
+      Plotly.newPlot("barChart", [{
+        type: "bar",
+        x: sorted.map(row => row.City),
+        y: sorted.map(row => row["Mean Green Space (%)"]),
+        hovertemplate: "%{x}<br>Mean green space: %{y:.1f}%<extra></extra>"
+      }], {
+        title: "Mean Green Space (%) by City",
+        margin: { t: 60, r: 20, b: 80, l: 60 },
+        yaxis: { title: "Mean Green Space (%)" },
+        xaxis: { title: "City" }
+      }, {
+        responsive: true,
+        displayModeBar: false
+      });
+    }
+
+    function renderScatter() {
+      if (!dashboardData.length) return;
+
+      const xVariable = document.getElementById("xVariable").value || VARIABLE_OPTIONS[0];
+      const yVariable = "Mean Green Space (%)";
+      const r = correlation(
+        dashboardData.map(row => row[xVariable]),
+        dashboardData.map(row => row[yVariable])
+      );
+
+      Plotly.newPlot("scatterChart", [{
+        type: "scatter",
+        mode: "markers+text",
+        x: dashboardData.map(row => row[xVariable]),
+        y: dashboardData.map(row => row[yVariable]),
+        text: dashboardData.map(row => row.City),
+        textposition: "top center",
+        hovertemplate: "%{text}<br>X: %{x}<br>Green space: %{y:.1f}%<extra></extra>"
+      }], {
+        title: `${xVariable} vs Mean Green Space (%)<br><sup>Correlation: ${r === null ? "n.d." : r.toFixed(3)}</sup>`,
+        margin: { t: 80, r: 20, b: 80, l: 70 },
+        xaxis: { title: xVariable },
+        yaxis: { title: yVariable }
+      }, {
+        responsive: true,
+        displayModeBar: false
+      });
+    }
+
+    function renderEastWestChart() {
+      if (!dashboardData.length) return;
+
+      const city = document.getElementById("citySelect").value || dashboardData[0].City;
+      const row = dashboardData.find(item => item.City === city) || dashboardData[0];
+
+      Plotly.newPlot("eastWestChart", [{
+        type: "bar",
+        x: ["East Quadrat", "West Quadrat", "Mean"],
+        y: [
+          row["East Quadrat Green Space (%)"],
+          row["West Quadrat Green Space (%)"],
+          row["Mean Green Space (%)"]
+        ],
+        hovertemplate: "%{x}: %{y:.1f}%<extra></extra>"
+      }], {
+        title: `East / West / Mean Green Space – ${row.City}`,
+        margin: { t: 60, r: 20, b: 60, l: 60 },
+        yaxis: { title: "Green Space (%)" }
+      }, {
+        responsive: true,
+        displayModeBar: false
+      });
+    }
+
+    function renderCorrelations() {
+      const y = dashboardData.map(row => row["Mean Green Space (%)"]);
+
+      document.getElementById("corrBody").innerHTML = VARIABLE_OPTIONS.map(variable => {
+        const x = dashboardData.map(row => row[variable]);
+        const r = correlation(x, y);
+
+        return `
+          <tr>
+            <td>${variable}</td>
+            <td><strong>${r === null ? "n.d." : r.toFixed(3)}</strong></td>
+            <td>${corrLabel(r)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
